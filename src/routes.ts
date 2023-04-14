@@ -1,18 +1,7 @@
-import { FastifyInstance } from "fastify"
+import { log } from "console"
+import { FastifyInstance, FastifyRequest } from "fastify"
 
-interface Caption {
-  text: string
-  start: number
-  end: number
-}
-
-interface ExportFileDetails {
-  folder: string
-  name: string
-  format: string
-}
-
-const jsonLetra: Caption[] = require("../mock/subtitle.json")
+const MOCK: Caption[] = require("../mock/subtitle.json")
 
 const generateCaptionFile = (caption: string, details: ExportFileDetails) => {
   const fs = require("fs")
@@ -38,8 +27,11 @@ const formatCaptionToVTT = (caption: Caption[]) => {
 
   formattedCaption += "WEBVTT\n\n"
 
-  caption.map((line, index) => {
-    const string = `${formatTimestampToISO(line.start,false)} --> ${formatTimestampToISO(line.end, false)}\n- ${line.text}\n\n`
+  caption.map((line) => {
+    const string = `${formatTimestampToISO(
+      line.start,
+      false
+    )} --> ${formatTimestampToISO(line.end, false)}\n- ${line.text}\n\n`
     formattedCaption += string
   })
   return formattedCaption
@@ -48,7 +40,9 @@ const formatCaptionToVTT = (caption: Caption[]) => {
 const formatCaptionToSRT = (caption: Caption[]) => {
   let formattedCaption = ""
   caption.map((line, index) => {
-    const string = `${index + 1}\n${formatTimestampToISO(line.start)} --> ${formatTimestampToISO(line.end)}\n${line.text}\n\n`
+    const string = `${index + 1}\n${formatTimestampToISO(
+      line.start
+    )} --> ${formatTimestampToISO(line.end)}\n${line.text}\n\n`
     formattedCaption += string
   })
 
@@ -70,17 +64,33 @@ const formatCaption = (caption: Caption[], format: string) => {
   return parsedCaption
 }
 
+import fs from "fs"
+
 export async function appRoutes(app: FastifyInstance) {
-  app.get("/export", async (request) => {
-    const chosenFileFormat = "srt"
-    const caption = formatCaption(jsonLetra, chosenFileFormat)
+  app.get(
+    "/public/:filename",
+    async (req: FastifyRequest<{ Params: { filename: string } }>, reply) => {
+      const { filename } = req.params
+      const fileContent = fs.readFileSync(`public/${filename}`, "utf8")
+      reply.type("text/plain").send(fileContent)
+    }
+  )
+
+  app.post("/export", async (req: FastifyRequest<{ Body: RequestProps }>) => {
+    const { captions, fileFormat } = req.body
+
+    const caption = formatCaption(captions, fileFormat)
+
+    const crypto = require("crypto")
+    const fileName = crypto.randomUUID()
 
     const exportDetails: ExportFileDetails = {
-      folder: "exported",
-      name: "caption",
-      format: chosenFileFormat,
+      folder: "public",
+      name: fileName,
+      format: fileFormat,
     }
     generateCaptionFile(caption, exportDetails)
-    return caption
+
+    return `${exportDetails.name}.${exportDetails.format}`
   })
 }

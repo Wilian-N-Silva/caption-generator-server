@@ -14,8 +14,7 @@ Molten bloody earth
 A focused open wound
 ```
 
-
-### WebVTT (.vtt)
+### VTT / WebVTT / Video Text Tracks (.vtt)
 
 ```plain
 WEBVTT
